@@ -3,6 +3,7 @@ package server
 import (
 	"io"
 	"net"
+	"strings"
 	"sync"
 	"time"
 )
@@ -73,8 +74,8 @@ func (s *TcpServer) Start() error {
 				go s.handleConnection(conn)
 				s.numTotalConn++
 				s.ipMutex.Lock()
-				if _, ok := s.ipPerSecMap[conn.RemoteAddr().(*net.TCPAddr).IP.String()]; !ok {
-					s.ipPerSecMap[conn.RemoteAddr().String()] = time.Now()
+				if _, ok := s.ipPerSecMap[strings.Split(conn.RemoteAddr().String(), ":")[0]]; !ok {
+					s.ipPerSecMap[strings.Split(conn.RemoteAddr().String(), ":")[0]] = time.Now()
 					s.numConnPerSec++
 				}
 				s.ipMutex.Unlock()
