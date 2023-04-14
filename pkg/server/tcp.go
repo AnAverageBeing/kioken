@@ -12,7 +12,7 @@ type TcpServer struct {
 	numConnPerSec int
 	numActiveConn int
 	numTotalConn  int
-	ipPerSecMap   map[string]bool
+	ipPerSecMap   map[string]time.Time
 	ipPerSec      int
 	ipMutex       sync.Mutex
 	listener      net.Listener
@@ -22,7 +22,7 @@ type TcpServer struct {
 func NewTcpServer(addr string) *TcpServer {
 	return &TcpServer{
 		addr:        addr,
-		ipPerSecMap: make(map[string]bool),
+		ipPerSecMap: make(map[string]time.Time),
 	}
 }
 
@@ -60,17 +60,24 @@ func (s *TcpServer) Start() error {
 			select {
 			case <-cpsTicker.C:
 				s.ipMutex.Lock()
+				now := time.Now()
+				for k, v := range s.ipPerSecMap {
+					if now.Sub(v) >= time.Second {
+						delete(s.ipPerSecMap, k)
+					}
+				}
 				s.ipPerSec = len(s.ipPerSecMap)
 				s.numConnPerSec = 0
-				s.ipPerSecMap = make(map[string]bool)
 				s.ipMutex.Unlock()
 			case conn := <-connCh:
 				go s.handleConnection(conn)
 				s.numTotalConn++
 				s.ipMutex.Lock()
-				s.ipPerSecMap[conn.RemoteAddr().String()] = true
+				if _, ok := s.ipPerSecMap[conn.RemoteAddr().(*net.TCPAddr).IP.String()]; !ok {
+					s.ipPerSecMap[conn.RemoteAddr().String()] = time.Now()
+					s.numConnPerSec++
+				}
 				s.ipMutex.Unlock()
-				s.numConnPerSec++
 			}
 		}
 	}()
@@ -99,10 +106,6 @@ func (s *TcpServer) acceptConnections(connCh chan net.Conn) {
 
 func (s *TcpServer) handleConnection(conn net.Conn) {
 	s.numActiveConn++
-
-	s.ipMutex.Lock()
-	s.ipPerSecMap[conn.RemoteAddr().String()] = true
-	s.ipMutex.Unlock()
 
 	defer func() {
 		conn.Close()
