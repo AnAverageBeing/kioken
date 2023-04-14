@@ -86,6 +86,7 @@ func (s *TcpServer) Stop() error {
 	if err != nil {
 		return err
 	}
+	s.pool.Stop()
 	s.shouldRun = false
 	return nil
 }
