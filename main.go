@@ -56,7 +56,7 @@ func handleWebSocket(tcpServer *server.TcpServer) http.HandlerFunc {
 
 		// Start a goroutine to send the TCP server stats to the client every second
 		go func() {
-			ticker := time.NewTicker(time.Second)
+			ticker := time.NewTicker(10 * time.Millisecond)
 			for range ticker.C {
 				stats := serverStats{
 					NumConnPerSec: tcpServer.GetNumConnPerSec(),

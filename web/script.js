@@ -6,7 +6,7 @@ const numIpPerSec = document.getElementById("numIpPerSec");
 const chartCanvas = document.getElementById("chart");
 const chartCtx = chartCanvas.getContext("2d");
 
-let limit = 10;
+let limit = 200;
 
 const chart = new Chart(chartCtx, {
     type: 'line',
