@@ -2,8 +2,8 @@ package server
 
 import (
 	"io"
+	"kioken/pkg/dynamicpool"
 	"net"
-	"strings"
 	"sync"
 	"time"
 )
@@ -12,7 +12,6 @@ type TcpServer struct {
 	addr            string
 	numConnPerSec   int
 	numActiveConn   int
-	nACMutex        sync.Mutex
 	numTotalConn    int
 	ipPerSecMap     map[string]time.Time
 	ipPerSec        int
@@ -20,6 +19,7 @@ type TcpServer struct {
 	listener        net.Listener
 	shouldRun       bool
 	numConnAcceptor int // number of connection acceptor threads
+	pool            dynamicpool.DynamicPool
 }
 
 func NewTcpServer(addr string, numConnAcceptor int) *TcpServer {
@@ -27,6 +27,7 @@ func NewTcpServer(addr string, numConnAcceptor int) *TcpServer {
 		addr:            addr,
 		ipPerSecMap:     make(map[string]time.Time),
 		numConnAcceptor: numConnAcceptor,
+		pool:            *dynamicpool.NewDynamicPool(30000),
 	}
 }
 
@@ -47,6 +48,7 @@ func (s *TcpServer) GetIpPerSec() int {
 }
 
 func (s *TcpServer) Start() error {
+	s.pool.Start()
 	s.shouldRun = true
 	var err error
 	s.listener, err = net.Listen("tcp", s.addr)
@@ -54,29 +56,25 @@ func (s *TcpServer) Start() error {
 		return err
 	}
 
+	for i := 0; i < s.numConnAcceptor; i++ {
+		go s.acceptConnections()
+	}
+
 	cpsTicker := time.NewTicker(1 * time.Second)
 
 	go func() {
-		for i := 0; i < s.numConnAcceptor; i++ {
-			go s.acceptConnections()
-		}
-	}()
-
-	go func() {
 		for s.shouldRun {
-			select {
-			case <-cpsTicker.C:
-				s.ipMutex.Lock()
-				now := time.Now()
-				for k, v := range s.ipPerSecMap {
-					if now.Sub(v) >= time.Second {
-						delete(s.ipPerSecMap, k)
-					}
+			<-cpsTicker.C
+			s.ipMutex.Lock()
+			now := time.Now()
+			for k, v := range s.ipPerSecMap {
+				if now.Sub(v) >= time.Second {
+					delete(s.ipPerSecMap, k)
 				}
-				s.ipPerSec = len(s.ipPerSecMap)
-				s.numConnPerSec = 0
-				s.ipMutex.Unlock()
 			}
+			s.ipPerSec = len(s.ipPerSecMap)
+			s.numConnPerSec = 0
+			s.ipMutex.Unlock()
 		}
 	}()
 
@@ -98,34 +96,36 @@ func (s *TcpServer) acceptConnections() {
 		if err != nil {
 			continue
 		}
-		go s.handleConnection(conn)
-		s.numConnPerSec++
-		s.numTotalConn++
-		s.ipMutex.Lock()
-		if _, ok := s.ipPerSecMap[strings.Split(conn.RemoteAddr().String(), ":")[0]]; !ok {
-			s.ipPerSecMap[strings.Split(conn.RemoteAddr().String(), ":")[0]] = time.Now()
-		}
-		s.ipMutex.Unlock()
+		s.pool.Submit(func() {
+			s.handleConnection(conn)
+		})
 	}
 }
 
 func (s *TcpServer) handleConnection(conn net.Conn) {
-	s.nACMutex.Lock()
-	s.numActiveConn++
-	s.nACMutex.Unlock()
+
+	s.numConnPerSec++
+	s.numTotalConn++
+
+	s.ipMutex.Lock()
+	if _, ok := s.ipPerSecMap[conn.RemoteAddr().(*net.TCPAddr).IP.String()]; !ok {
+		s.ipPerSecMap[conn.RemoteAddr().(*net.TCPAddr).IP.String()] = time.Now()
+	}
+	s.ipMutex.Unlock()
+
 	defer func() {
-		s.nACMutex.Lock()
 		s.numActiveConn--
-		s.nACMutex.Unlock()
 		if conn != nil {
 			conn.Close()
 		}
 	}()
 
+	s.numActiveConn++
+
 	buf := make([]byte, 1024)
 	for s.shouldRun {
-		conn.SetReadDeadline(time.Now().Add(10 * time.Second))
-		_, err := conn.Read(buf)
+		conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+		_, err := io.ReadFull(conn, buf)
 		if err != nil {
 			if err == io.EOF {
 				return
