@@ -12,6 +12,7 @@ type TcpServer struct {
 	addr            string
 	numConnPerSec   int
 	numActiveConn   int
+	nACMutex        sync.Mutex
 	numTotalConn    int
 	ipPerSecMap     map[string]time.Time
 	ipPerSec        int
@@ -109,11 +110,16 @@ func (s *TcpServer) acceptConnections() {
 }
 
 func (s *TcpServer) handleConnection(conn net.Conn) {
+	s.nACMutex.Lock()
 	s.numActiveConn++
-
+	s.nACMutex.Unlock()
 	defer func() {
-		conn.Close()
+		s.nACMutex.Lock()
 		s.numActiveConn--
+		s.nACMutex.Unlock()
+		if conn != nil {
+			conn.Close()
+		}
 	}()
 
 	buf := make([]byte, 1024)
