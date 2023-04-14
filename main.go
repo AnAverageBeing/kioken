@@ -36,7 +36,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	tcpServer.Start(*numListner)
+	go tcpServer.Start(*numListner)
 
 	// Create a new WebSocket server
 	http.HandleFunc("/ws", handleWebSocket(tcpServer))
