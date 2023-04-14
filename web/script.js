@@ -24,7 +24,6 @@ Chart.plugins.register({
               // Draw the tag as a small box with the current value
               chartCtx.fillStyle = dataset.borderColor;
               chartCtx.fillRect(point._model.x - 15, point._model.y - 15, 30, 30);
-              chartCtx.fillStyle = '#fff';
               chartCtx.textAlign = 'center';
               chartCtx.font = '12px Arial';
               chartCtx.fillText(text, point._model.x, point._model.y + 4);
