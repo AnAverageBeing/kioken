@@ -6,7 +6,7 @@ const numIpPerSec = document.getElementById("numIpPerSec");
 const chartCanvas = document.getElementById("chart");
 const chartCtx = chartCanvas.getContext("2d");
 
-let limit = 200;
+let limit = 120;
 
 const chart = new Chart(chartCtx, {
     type: 'line',
@@ -79,9 +79,3 @@ ws.onmessage = function(event) {
 
     chart.update();
 };
-
-const limitInput = document.getElementById("limit-input");
-
-limitInput.addEventListener("input", function() {
-    limit = parseInt(limitInput.value);
-});
