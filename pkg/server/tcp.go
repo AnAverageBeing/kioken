@@ -72,11 +72,11 @@ func (s *TcpServer) Start() error {
 				s.ipMutex.Unlock()
 			case conn := <-connCh:
 				go s.handleConnection(conn)
+				s.numConnPerSec++
 				s.numTotalConn++
 				s.ipMutex.Lock()
 				if _, ok := s.ipPerSecMap[strings.Split(conn.RemoteAddr().String(), ":")[0]]; !ok {
 					s.ipPerSecMap[strings.Split(conn.RemoteAddr().String(), ":")[0]] = time.Now()
-					s.numConnPerSec++
 				}
 				s.ipMutex.Unlock()
 			}
