@@ -10,29 +10,29 @@ let limit = 120;
 
 // Custom plugin to draw value tags on the chart
 Chart.plugins.register({
-    afterDatasetsDraw: function(chart, easing) {
-      // Loop through each dataset
-      chart.data.datasets.forEach(function(dataset, datasetIndex) {
-        const meta = chart.getDatasetMeta(datasetIndex);
-        if (!meta.hidden) {
-          // Loop through each point in the dataset
-          meta.data.forEach(function(point, index) {
-            // Only draw a tag every 5 seconds
-            if (index % 5 === 0) {
-              const currentValue = dataset.data[index];
-              const text = currentValue.toFixed(2);
-              // Draw the tag as a small box with the current value
-              chartCtx.fillStyle = dataset.borderColor;
-              chartCtx.fillRect(point._model.x - 15, point._model.y - 15, 30, 30);
-              chartCtx.textAlign = 'center';
-              chartCtx.font = '12px Arial';
-              chartCtx.fillText(text, point._model.x, point._model.y + 4);
+    afterDatasetsDraw: function (chart, easing) {
+        // Loop through each dataset
+        chart.data.datasets.forEach(function (dataset, datasetIndex) {
+            const meta = chart.getDatasetMeta(datasetIndex);
+            if (!meta.hidden) {
+                // Loop through each point in the dataset
+                meta.data.forEach(function (point, index) {
+                    // Only draw a tag every 5 seconds
+                    if (index % 5 === 0) {
+                        const currentValue = dataset.data[index];
+                        const text = currentValue.toFixed(2);
+                        // Draw the tag as a small box with the current value
+                        chartCtx.fillStyle = '#000';
+                        chartCtx.textAlign = 'center';
+                        chartCtx.font = '12px Arial';
+                        chartCtx.fillText(text, point._model.x, point._model.y - 10);
+                    }
+                });
             }
-          });
-        }
-      });
+        });
     }
-  });
+});
+
 
 const chart = new Chart(chartCtx, {
     type: 'line',
@@ -89,7 +89,7 @@ const chart = new Chart(chartCtx, {
 
 const ws = new WebSocket("ws://" + window.location.host + "/ws");
 
-ws.onmessage = function(event) {
+ws.onmessage = function (event) {
     const data = JSON.parse(event.data);
     numTotalConn.innerText = data.numTotalConn;
     numConnPerSec.innerText = data.numConnPerSec;
