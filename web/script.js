@@ -8,32 +8,6 @@ const chartCtx = chartCanvas.getContext("2d");
 
 let limit = 120;
 
-// Custom plugin to draw value tags on the chart
-Chart.plugins.register({
-    afterDatasetsDraw: function (chart, easing) {
-        // Loop through each dataset
-        chart.data.datasets.forEach(function (dataset, datasetIndex) {
-            const meta = chart.getDatasetMeta(datasetIndex);
-            if (!meta.hidden) {
-                // Loop through each point in the dataset
-                meta.data.forEach(function (point, index) {
-                    // Only draw a tag every 5 seconds
-                    if (index % 5 === 0) {
-                        const currentValue = dataset.data[index];
-                        const text = currentValue.toFixed(2);
-                        // Draw the tag as a small box with the current value
-                        chartCtx.fillStyle = '#ffff';
-                        chartCtx.textAlign = 'center';
-                        chartCtx.font = '12px Arial';
-                        chartCtx.fillText(text, point._model.x, point._model.y - 10);
-                    }
-                });
-            }
-        });
-    }
-});
-
-
 const chart = new Chart(chartCtx, {
     type: 'line',
     data: {
@@ -83,6 +57,36 @@ const chart = new Chart(chartCtx, {
                     beginAtZero: true
                 }
             }]
+        },
+        annotation: {
+            annotations: []
+        },
+        onHover: function (event, chartElement) {
+            chartCtx.canvas.style.cursor = chartElement[0] ? 'pointer' : 'default';
+            if (chartElement[0]) {
+                const index = chartElement[0]._index;
+                const datasetIndex = chartElement[0]._datasetIndex;
+                const value = chart.data.datasets[datasetIndex].data[index];
+                const yAxis = chart.scales['y-axis-0'];
+                chart.options.annotation.annotations = [{
+                    type: 'line',
+                    mode: 'horizontal',
+                    scaleID: 'y-axis-0',
+                    value: value,
+                    borderColor: 'rgba(0, 0, 0, 0.5)',
+                    borderWidth: 1,
+                    label: {
+                        content: value.toFixed(2),
+                        enabled: true,
+                        backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                        fontColor: 'black'
+                    }
+                }];
+                chart.update();
+            } else {
+                chart.options.annotation.annotations = [];
+                chart.update();
+            }
         }
     }
 });
