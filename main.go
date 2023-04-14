@@ -32,10 +32,11 @@ var upgrader = websocket.Upgrader{
 func main() {
 	flag.Parse()
 	// Create a new TCP server and start it
-	tcpServer := server.NewTcpServer(":1234", *numListner)
-	if err := tcpServer.Start(); err != nil {
-		log.Fatalf("Failed to start TCP server: %s", err)
+	tcpServer, err := server.NewServer(":1234")
+	if err != nil {
+		log.Fatalln(err)
 	}
+	tcpServer.Start(*numListner)
 
 	// Create a new WebSocket server
 	http.HandleFunc("/ws", handleWebSocket(tcpServer))
@@ -45,7 +46,7 @@ func main() {
 	log.Fatal(http.ListenAndServe(":80", nil))
 }
 
-func handleWebSocket(tcpServer *server.TcpServer) http.HandlerFunc {
+func handleWebSocket(tcpServer *server.TCPServer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Upgrade the HTTP connection to WebSocket
 		conn, err := upgrader.Upgrade(w, r, nil)
@@ -56,7 +57,7 @@ func handleWebSocket(tcpServer *server.TcpServer) http.HandlerFunc {
 
 		// Start a goroutine to send the TCP server stats to the client every second
 		go func() {
-			ticker := time.NewTicker(10 * time.Millisecond)
+			ticker := time.NewTicker(time.Second)
 			for range ticker.C {
 				stats := serverStats{
 					NumConnPerSec: tcpServer.GetNumConnPerSec(),

@@ -1,142 +1,132 @@
 package server
 
 import (
-	"io"
-	"kioken/pkg/dynamicpool"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
-type TcpServer struct {
-	addr            string
-	numConnPerSec   int
-	numActiveConn   int
-	activeConnMutex sync.Mutex
-	numTotalConn    int
-	ipPerSecMap     map[string]time.Time
-	ipPerSec        int
-	ipMutex         sync.Mutex
-	listener        net.Listener
-	shouldRun       bool
-	numConnAcceptor int // number of connection acceptor threads
-	pool            dynamicpool.DynamicPool
+type TCPServer struct {
+	numConnPerSec int32
+	numActiveConn int32
+	numTotalConn  int32
+	ipPerSec      int32
+	ips           map[string]bool
+	mutex         sync.Mutex
+	listener      net.Listener
+	stopChan      chan bool
 }
 
-func NewTcpServer(addr string, numConnAcceptor int) *TcpServer {
-	return &TcpServer{
-		addr:            addr,
-		ipPerSecMap:     make(map[string]time.Time),
-		numConnAcceptor: numConnAcceptor,
-		pool:            *dynamicpool.NewDynamicPool(30000),
-	}
-}
-
-func (s *TcpServer) GetNumConnPerSec() int {
-	return s.numConnPerSec
-}
-
-func (s *TcpServer) GetNumActiveConn() int {
-	return s.numActiveConn
-}
-
-func (s *TcpServer) GetNumTotalConn() int {
-	return s.numTotalConn
-}
-
-func (s *TcpServer) GetIpPerSec() int {
-	return s.ipPerSec
-}
-
-func (s *TcpServer) Start() error {
-	s.pool.Start()
-	s.shouldRun = true
-	var err error
-	s.listener, err = net.Listen("tcp", s.addr)
+func NewServer(addr string) (*TCPServer, error) {
+	listener, err := net.Listen("tcp", addr)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	for i := 0; i < s.numConnAcceptor; i++ {
-		go s.acceptConnections()
-	}
-
-	cpsTicker := time.NewTicker(1 * time.Second)
-
-	go func() {
-		for s.shouldRun {
-			<-cpsTicker.C
-			s.ipMutex.Lock()
-			now := time.Now()
-			for k, v := range s.ipPerSecMap {
-				if now.Sub(v) >= time.Second {
-					delete(s.ipPerSecMap, k)
-				}
-			}
-			s.ipPerSec = len(s.ipPerSecMap)
-			s.numConnPerSec = 0
-			s.ipMutex.Unlock()
-		}
-	}()
-
-	return nil
+	return &TCPServer{
+		listener: listener,
+		stopChan: make(chan bool),
+		ips:      make(map[string]bool),
+	}, nil
 }
 
-func (s *TcpServer) Stop() error {
-	err := s.listener.Close()
-	if err != nil {
-		return err
+func (s *TCPServer) Start(numAccept int) {
+	wg := &sync.WaitGroup{}
+
+	var cps int32 = 0
+
+	for i := 0; i < numAccept; i++ {
+		wg.Add(1)
+		go s.acceptConn(wg, &cps)
 	}
-	s.pool.Stop()
-	s.shouldRun = false
-	return nil
+
+	go s.updateStats(&cps)
+
+	wg.Wait()
 }
 
-func (s *TcpServer) acceptConnections() {
-	for s.shouldRun {
-		conn, err := s.listener.Accept()
-		if err != nil {
-			continue
-		}
-		s.pool.Submit(func() {
-			s.handleConnection(conn)
-		})
-	}
+func (s *TCPServer) Stop() error {
+	s.stopChan <- true
+	return s.listener.Close()
 }
 
-func (s *TcpServer) handleConnection(conn net.Conn) {
+func (s *TCPServer) GetNumConnPerSec() int {
+	return int(atomic.LoadInt32(&s.numConnPerSec))
+}
 
-	s.numConnPerSec++
-	s.numTotalConn++
+func (s *TCPServer) GetNumActiveConn() int {
+	return int(atomic.LoadInt32(&s.numActiveConn))
+}
 
-	s.activeConnMutex.Lock()
-	s.numActiveConn++
-	s.activeConnMutex.Unlock()
+func (s *TCPServer) GetNumTotalConn() int {
+	return int(atomic.LoadInt32(&s.numTotalConn))
+}
 
-	s.ipMutex.Lock()
-	if _, ok := s.ipPerSecMap[conn.RemoteAddr().(*net.TCPAddr).IP.String()]; !ok {
-		s.ipPerSecMap[conn.RemoteAddr().(*net.TCPAddr).IP.String()] = time.Now()
-	}
-	s.ipMutex.Unlock()
+func (s *TCPServer) GetIpPerSec() int {
+	return int(atomic.LoadInt32(&s.ipPerSec))
+}
 
-	defer func() {
-		s.activeConnMutex.Lock()
-		s.numActiveConn--
-		s.activeConnMutex.Unlock()
-		if conn != nil {
-			conn.Close()
-		}
-	}()
+func (s *TCPServer) acceptConn(wg *sync.WaitGroup, cps *int32) {
+	defer wg.Done()
 
-	buf := make([]byte, 1024)
-	for s.shouldRun {
-		conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-		_, err := io.ReadFull(conn, buf)
-		if err != nil {
-			if err == io.EOF {
-				return
-			}
+	for {
+		select {
+		case <-s.stopChan:
 			return
+		default:
+			conn, err := s.listener.Accept()
+			if err != nil {
+				continue
+			}
+
+			atomic.AddInt32(&s.numTotalConn, 1)
+			atomic.AddInt32(&s.numActiveConn, 1)
+
+			go s.handleConn(conn, cps)
+		}
+	}
+}
+
+func (s *TCPServer) handleConn(conn net.Conn, cps *int32) {
+	defer func() {
+		conn.Close()
+		atomic.AddInt32(&s.numActiveConn, -1)
+	}()
+
+	atomic.AddInt32(cps, 1)
+
+	s.mutex.Lock()
+	s.ips[conn.RemoteAddr().(*net.TCPAddr).IP.String()] = true
+	s.mutex.Unlock()
+
+	for {
+		buf := make([]byte, 1024)
+		if _, err := conn.Read(buf); err != nil {
+			break
+		}
+	}
+}
+
+func (s *TCPServer) updateStats(cps *int32) {
+	ticker := time.NewTicker(time.Second)
+
+	for {
+		select {
+		case <-s.stopChan:
+			s.mutex.Lock()
+			s.ipPerSec = int32(len(s.ips))
+			s.ips = map[string]bool{}
+			s.numConnPerSec = *cps
+			*cps = 0
+			s.mutex.Unlock()
+			return
+		case <-ticker.C:
+			s.mutex.Lock()
+			s.ipPerSec = int32(len(s.ips))
+			s.ips = map[string]bool{}
+			s.numConnPerSec = 0
+			s.mutex.Unlock()
 		}
 	}
 }
