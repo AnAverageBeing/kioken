@@ -30,6 +30,7 @@ var upgrader = websocket.Upgrader{
 }
 
 func main() {
+	flag.Parse()
 	// Create a new TCP server and start it
 	tcpServer := server.NewTcpServer(":1234", *numListner)
 	if err := tcpServer.Start(); err != nil {
