@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"log"
 	"net/http"
 	"time"
@@ -18,6 +19,10 @@ type serverStats struct {
 	NumTotalConn  int `json:"numTotalConn"`  // total conn ever made
 }
 
+var (
+	numListner = flag.Int("listners", 5, "Num of conection acceptor loops")
+)
+
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		return true
@@ -26,7 +31,7 @@ var upgrader = websocket.Upgrader{
 
 func main() {
 	// Create a new TCP server and start it
-	tcpServer := server.NewTcpServer(":1234")
+	tcpServer := server.NewTcpServer(":1234", *numListner)
 	if err := tcpServer.Start(); err != nil {
 		log.Fatalf("Failed to start TCP server: %s", err)
 	}

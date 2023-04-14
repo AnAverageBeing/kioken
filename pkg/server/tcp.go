@@ -9,21 +9,23 @@ import (
 )
 
 type TcpServer struct {
-	addr          string
-	numConnPerSec int
-	numActiveConn int
-	numTotalConn  int
-	ipPerSecMap   map[string]time.Time
-	ipPerSec      int
-	ipMutex       sync.Mutex
-	listener      net.Listener
-	shouldRun     bool
+	addr            string
+	numConnPerSec   int
+	numActiveConn   int
+	numTotalConn    int
+	ipPerSecMap     map[string]time.Time
+	ipPerSec        int
+	ipMutex         sync.Mutex
+	listener        net.Listener
+	shouldRun       bool
+	numConnAcceptor int // number of connection acceptor threads
 }
 
-func NewTcpServer(addr string) *TcpServer {
+func NewTcpServer(addr string, numConnAcceptor int) *TcpServer {
 	return &TcpServer{
-		addr:        addr,
-		ipPerSecMap: make(map[string]time.Time),
+		addr:            addr,
+		ipPerSecMap:     make(map[string]time.Time),
+		numConnAcceptor: numConnAcceptor,
 	}
 }
 
@@ -52,9 +54,12 @@ func (s *TcpServer) Start() error {
 	}
 
 	cpsTicker := time.NewTicker(1 * time.Second)
-	connCh := make(chan net.Conn)
 
-	go s.acceptConnections(connCh)
+	go func() {
+		for i := 0; i < s.numConnAcceptor; i++ {
+			go s.acceptConnections()
+		}
+	}()
 
 	go func() {
 		for s.shouldRun {
@@ -69,15 +74,6 @@ func (s *TcpServer) Start() error {
 				}
 				s.ipPerSec = len(s.ipPerSecMap)
 				s.numConnPerSec = 0
-				s.ipMutex.Unlock()
-			case conn := <-connCh:
-				go s.handleConnection(conn)
-				s.numConnPerSec++
-				s.numTotalConn++
-				s.ipMutex.Lock()
-				if _, ok := s.ipPerSecMap[strings.Split(conn.RemoteAddr().String(), ":")[0]]; !ok {
-					s.ipPerSecMap[strings.Split(conn.RemoteAddr().String(), ":")[0]] = time.Now()
-				}
 				s.ipMutex.Unlock()
 			}
 		}
@@ -95,13 +91,20 @@ func (s *TcpServer) Stop() error {
 	return nil
 }
 
-func (s *TcpServer) acceptConnections(connCh chan net.Conn) {
+func (s *TcpServer) acceptConnections() {
 	for s.shouldRun {
 		conn, err := s.listener.Accept()
 		if err != nil {
 			continue
 		}
-		connCh <- conn
+		go s.handleConnection(conn)
+		s.numConnPerSec++
+		s.numTotalConn++
+		s.ipMutex.Lock()
+		if _, ok := s.ipPerSecMap[strings.Split(conn.RemoteAddr().String(), ":")[0]]; !ok {
+			s.ipPerSecMap[strings.Split(conn.RemoteAddr().String(), ":")[0]] = time.Now()
+		}
+		s.ipMutex.Unlock()
 	}
 }
 
