@@ -125,7 +125,7 @@ func (s *TCPServer) updateStats(cps *int32) {
 			s.mutex.Lock()
 			s.ipPerSec = int32(len(s.ips))
 			s.ips = map[string]bool{}
-			s.numConnPerSec = 0
+			s.numConnPerSec = atomic.SwapInt32(cps, 0)
 			s.mutex.Unlock()
 		}
 	}
