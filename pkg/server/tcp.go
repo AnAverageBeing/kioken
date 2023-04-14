@@ -12,6 +12,7 @@ type TcpServer struct {
 	addr            string
 	numConnPerSec   int
 	numActiveConn   int
+	activeConnMutex sync.Mutex
 	numTotalConn    int
 	ipPerSecMap     map[string]time.Time
 	ipPerSec        int
@@ -108,6 +109,10 @@ func (s *TcpServer) handleConnection(conn net.Conn) {
 	s.numConnPerSec++
 	s.numTotalConn++
 
+	s.activeConnMutex.Lock()
+	s.numActiveConn++
+	s.activeConnMutex.Unlock()
+
 	s.ipMutex.Lock()
 	if _, ok := s.ipPerSecMap[conn.RemoteAddr().(*net.TCPAddr).IP.String()]; !ok {
 		s.ipPerSecMap[conn.RemoteAddr().(*net.TCPAddr).IP.String()] = time.Now()
@@ -115,13 +120,13 @@ func (s *TcpServer) handleConnection(conn net.Conn) {
 	s.ipMutex.Unlock()
 
 	defer func() {
+		s.activeConnMutex.Lock()
 		s.numActiveConn--
+		s.activeConnMutex.Unlock()
 		if conn != nil {
 			conn.Close()
 		}
 	}()
-
-	s.numActiveConn++
 
 	buf := make([]byte, 1024)
 	for s.shouldRun {
