@@ -22,7 +22,7 @@ Chart.plugins.register({
                         const currentValue = dataset.data[index];
                         const text = currentValue.toFixed(2);
                         // Draw the tag as a small box with the current value
-                        chartCtx.fillStyle = '#000';
+                        chartCtx.fillStyle = '#ffff';
                         chartCtx.textAlign = 'center';
                         chartCtx.font = '12px Arial';
                         chartCtx.fillText(text, point._model.x, point._model.y - 10);
