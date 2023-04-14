@@ -18,27 +18,30 @@ const chart = new Chart(chartCtx, {
                 data: [],
                 backgroundColor: 'rgba(255, 99, 132, 0.2)',
                 borderColor: 'rgba(255, 99, 132, 1)',
-                borderWidth: 1,
+                borderWidth: 2,
                 fill: false,
-                lineTension: 0.5 // adjust this value to control line smoothness
+                pointRadius: 0,
+                pointHoverRadius: 0
             },
             {
                 label: 'Active Connections',
                 data: [],
                 backgroundColor: 'rgba(54, 162, 235, 0.2)',
                 borderColor: 'rgba(54, 162, 235, 1)',
-                borderWidth: 1,
+                borderWidth: 2,
                 fill: false,
-                lineTension: 0.5 // adjust this value to control line smoothness
+                pointRadius: 0,
+                pointHoverRadius: 0
             },
             {
                 label: 'IPs Per Second',
                 data: [],
                 backgroundColor: 'rgba(255, 206, 86, 0.2)',
                 borderColor: 'rgba(255, 206, 86, 1)',
-                borderWidth: 1,
+                borderWidth: 2,
                 fill: false,
-                lineTension: 0.5 // adjust this value to control line smoothness
+                pointRadius: 0,
+                pointHoverRadius: 0
             }
         ]
     },
