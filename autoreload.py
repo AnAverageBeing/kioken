@@ -1,11 +1,10 @@
 import os
 import logging
 import subprocess
+import hmac
 from flask import Flask, request, abort, jsonify, render_template_string
-from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
-socketio = SocketIO(app)
 
 # configure logging
 logging.basicConfig(
@@ -108,11 +107,10 @@ def info():
     # get project info
     global rebuild_count
     rebuild_count_str = str(rebuild_count)
-    # upgrade info to WebSocket
-    socketio.emit('info', {'project_info': {'rebuild_count': rebuild_count_str}})
+    
     return jsonify({'project_info': {'rebuild_count': rebuild_count_str}})
 
 if __name__ == '__main__':
     subprocess.call(['go', 'build', '-o', 'kioken', 'cmd/kioken/kioken.go'])
     subprocess.Popen('./kioken')
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000)
+    app.run()
