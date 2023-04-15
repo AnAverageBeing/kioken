@@ -36,6 +36,18 @@ func main() {
 			fmt.Printf("%+v", pullRequest)
 		}
 	})
+
+	buildCmd := exec.Command("go", "build", "-o", "kioken", "cmd/kioken/kioken.go")
+	if err := buildCmd.Start(); err != nil {
+		fmt.Errorf("error building application: %v", err)
+
+	}
+	// start a new instance of the application
+	startCmd := exec.Command("./kioken")
+	if err := startCmd.Start(); err != nil {
+		fmt.Errorf("error starting application: %v", err)
+	}
+
 	http.ListenAndServe(":5000", nil)
 }
 
