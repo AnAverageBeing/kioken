@@ -31,17 +31,13 @@ func main() {
 			return
 		}
 
-		payload, err := hook.Parse(r, github.ReleaseEvent, github.PullRequestEvent)
+		_, err := hook.Parse(r, github.ReleaseEvent, github.PullRequestEvent)
 		if err != nil {
-			log.Fatalf(err.Error())
+			w.Write([]byte("Error: " + err.Error()))
+			return
 		}
 
-		switch payload.(type) {
-		case github.PullRequestPayload:
-			pullRequest := payload.(github.PullRequestPayload)
-			restart()
-			fmt.Printf("%+v", pullRequest)
-		}
+		restart()
 	})
 
 	buildCmd := exec.Command("go", "build", "-o", "kioken", "cmd/kioken/kioken.go")
