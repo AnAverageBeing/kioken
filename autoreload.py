@@ -113,4 +113,4 @@ def info():
 if __name__ == '__main__':
     subprocess.call(['go', 'build', '-o', 'kioken', 'cmd/kioken/kioken.go'])
     subprocess.Popen('./kioken')
-    subprocess.Popen(['flask', 'run', '--host=0.0.0.0', '--port=5000'])
+    app.run(host='0.0.0.0', port=5000)
