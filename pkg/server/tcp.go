@@ -15,7 +15,7 @@ type TCPServer struct {
 	ips           map[string]bool
 	mutex         sync.Mutex
 	listener      net.Listener
-	stopChan      chan bool
+	stopChan      chan struct{}
 }
 
 func NewServer(addr string) (*TCPServer, error) {
@@ -26,28 +26,29 @@ func NewServer(addr string) (*TCPServer, error) {
 
 	return &TCPServer{
 		listener: listener,
-		stopChan: make(chan bool),
+		stopChan: make(chan struct{}),
 		ips:      make(map[string]bool),
 	}, nil
 }
 
 func (s *TCPServer) Start(numAccept int) {
-	wg := &sync.WaitGroup{}
-
-	var cps int32 = 0
+	var wg sync.WaitGroup
+	wg.Add(numAccept)
 
 	for i := 0; i < numAccept; i++ {
-		wg.Add(1)
-		go s.acceptConn(wg, &cps)
+		go func() {
+			defer wg.Done()
+			s.acceptConn()
+		}()
 	}
 
-	go s.updateStats(&cps)
+	go s.updateStats()
 
 	wg.Wait()
 }
 
 func (s *TCPServer) Stop() error {
-	s.stopChan <- true
+	close(s.stopChan)
 	return s.listener.Close()
 }
 
@@ -67,9 +68,7 @@ func (s *TCPServer) GetIpPerSec() int {
 	return int(atomic.LoadInt32(&s.ipPerSec))
 }
 
-func (s *TCPServer) acceptConn(wg *sync.WaitGroup, cps *int32) {
-	defer wg.Done()
-
+func (s *TCPServer) acceptConn() {
 	for {
 		select {
 		case <-s.stopChan:
@@ -83,32 +82,34 @@ func (s *TCPServer) acceptConn(wg *sync.WaitGroup, cps *int32) {
 			atomic.AddInt32(&s.numTotalConn, 1)
 			atomic.AddInt32(&s.numActiveConn, 1)
 
-			go s.handleConn(conn, cps)
+			go func() {
+				s.handleConn(conn)
+				atomic.AddInt32(&s.numActiveConn, -1)
+			}()
 		}
 	}
 }
 
-func (s *TCPServer) handleConn(conn net.Conn, cps *int32) {
-	defer func() {
-		conn.Close()
-		atomic.AddInt32(&s.numActiveConn, -1)
-	}()
-
-	atomic.AddInt32(cps, 1)
-
-	s.mutex.Lock()
-	s.ips[conn.RemoteAddr().(*net.TCPAddr).IP.String()] = true
-	s.mutex.Unlock()
+func (s *TCPServer) handleConn(conn net.Conn) {
+	buf := make([]byte, 1024)
+	defer conn.Close()
 
 	for {
-		buf := make([]byte, 1024)
 		if _, err := conn.Read(buf); err != nil {
 			break
 		}
 	}
+
+	s.updateIps(conn)
 }
 
-func (s *TCPServer) updateStats(cps *int32) {
+func (s *TCPServer) updateIps(conn net.Conn) {
+	s.mutex.Lock()
+	s.ips[conn.RemoteAddr().(*net.TCPAddr).IP.String()] = true
+	s.mutex.Unlock()
+}
+
+func (s *TCPServer) updateStats() {
 	ticker := time.NewTicker(time.Second)
 
 	for {
@@ -116,16 +117,15 @@ func (s *TCPServer) updateStats(cps *int32) {
 		case <-s.stopChan:
 			s.mutex.Lock()
 			s.ipPerSec = int32(len(s.ips))
-			s.ips = map[string]bool{}
-			s.numConnPerSec = *cps
-			*cps = 0
+			s.ips = make(map[string]bool)
+			s.numConnPerSec = 0
 			s.mutex.Unlock()
 			return
 		case <-ticker.C:
 			s.mutex.Lock()
 			s.ipPerSec = int32(len(s.ips))
-			s.ips = map[string]bool{}
-			s.numConnPerSec = atomic.SwapInt32(cps, 0)
+			s.ips = make(map[string]bool)
+			s.numConnPerSec = atomic.SwapInt32(&s.numConnPerSec, 0)
 			s.mutex.Unlock()
 		}
 	}
