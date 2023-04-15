@@ -60,14 +60,6 @@ html_template = """
         <p>Rebuild Count:</p>
         <p id="rebuild-count">{{ rebuild_count }}</p>
     </div>
-    
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.3.2/socket.io.min.js"></script>
-    <script>
-        var socket = io.connect('http://' + document.domain + ':' + location.port + '/info');
-        socket.on('info', function(data) {
-            document.querySelector('#rebuild-count').textContent = data.project_info.rebuild_count;
-        });
-    </script>
 </body>
 </html>
 """
@@ -110,10 +102,6 @@ def webhook():
         return '', 200
     else:
         abort(400)
-
-@socketio.on('connect')
-def connect():
-    emit('info', {'project_info': {'rebuild_count': rebuild_count}})
 
 @app.route('/info')
 def info():
