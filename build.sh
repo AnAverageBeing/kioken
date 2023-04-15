@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define output directory
-OUTPUT_DIR="bin"
+OUTPUT_DIR="."
 
 # Create output directory if it doesn't exist
 if [ ! -d "$OUTPUT_DIR" ]; then
