@@ -25,10 +25,15 @@ func main() {
 	hook, _ := github.New(github.Options.Secret(str))
 
 	http.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.Write([]byte("ACCESS DENIED"))
+		}
+
 		payload, err := hook.Parse(r, github.ReleaseEvent, github.PullRequestEvent)
 		if err != nil {
 			log.Fatalf(err.Error())
 		}
+
 		switch payload.(type) {
 		case github.PullRequestPayload:
 			pullRequest := payload.(github.PullRequestPayload)
