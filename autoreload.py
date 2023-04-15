@@ -83,6 +83,7 @@ def webhook():
         if not hmac.compare_digest(str(mac.hexdigest()), str(signature)):
             abort(401)
         data = request.get_json()
+        print(data)
         if data['action'] == 'push':
             branch = data['ref'].split('/')[-1]
             if branch == 'main':
