@@ -61,7 +61,7 @@ html_template = """
         <p id="rebuild-count">{{ rebuild_count }}</p>
     </div>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.3.2/socket.io.min.js" integrity="sha512-FPzTpTzTnTSGID/nb8f2Q1I7xkFlPTUXgRWoW8xEwvppwo/Tp0bJtNkpX9q3nyeKcp0tIaFt2GmzgDjR0NVfTQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.3.2/socket.io.min.js"></script>
     <script>
         var socket = io.connect('http://' + document.domain + ':' + location.port + '/info');
         socket.on('info', function(data) {
