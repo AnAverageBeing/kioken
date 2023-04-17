@@ -74,7 +74,7 @@ func handleWebSocket(tcpServer *server.TCPServer) http.HandlerFunc {
 
 				// Send the stats to the client
 				if err := conn.WriteMessage(websocket.TextMessage, statsJSON); err != nil {
-					log.Printf("Failed to send server stats to client: %s", err)
+					// log.Printf("Failed to send server stats to client: %s", err)
 					return
 				}
 			}
