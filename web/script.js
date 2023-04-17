@@ -86,4 +86,6 @@ ws.onmessage = function (event) {
 
   // Update chart
   chart.update();
+
+  console.log(data)
 };
