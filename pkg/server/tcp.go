@@ -9,6 +9,7 @@ import (
 
 type TCPServer struct {
 	numConnPerSec int32
+	localCPS      int32
 	numActiveConn int32
 	numTotalConn  int32
 	ipPerSec      int32
@@ -81,10 +82,13 @@ func (s *TCPServer) acceptConn() {
 
 			atomic.AddInt32(&s.numTotalConn, 1)
 			atomic.AddInt32(&s.numActiveConn, 1)
+			atomic.AddInt32(&s.localCPS, 1)
 
 			go func() {
 				s.handleConn(conn)
-				atomic.AddInt32(&s.numActiveConn, -1)
+				if s.GetNumActiveConn() > 0 {
+					atomic.AddInt32(&s.numActiveConn, -1)
+				}
 			}()
 		}
 	}
@@ -125,7 +129,8 @@ func (s *TCPServer) updateStats() {
 			s.mutex.Lock()
 			s.ipPerSec = int32(len(s.ips))
 			s.ips = make(map[string]bool)
-			s.numConnPerSec = atomic.SwapInt32(&s.numConnPerSec, 0)
+			atomic.SwapInt32(&s.numConnPerSec, s.localCPS)
+			atomic.StoreInt32(&s.localCPS, 0)
 			s.mutex.Unlock()
 		}
 	}
