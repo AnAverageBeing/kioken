@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -78,7 +77,6 @@ func handleWebSocket(tcpServer *server.TCPServer) http.HandlerFunc {
 					log.Printf("Failed to send server stats to client: %s", err)
 					return
 				}
-				fmt.Printf("%s\n", statsJSON)
 			}
 		}()
 	}
