@@ -62,7 +62,7 @@ const ws = new WebSocket("ws://" + window.location.host + "/ws");
 // Handle WebSocket messages
 ws.onmessage = function (event) {
   const data = JSON.parse(event.data);
-
+  console.log(data);
   // Update text content of elements
   numTotalConn.innerText = data.numTotalConn;
   numConnPerSec.innerText = data.numConnPerSec;
@@ -86,6 +86,4 @@ ws.onmessage = function (event) {
 
   // Update chart
   chart.update();
-
-  console.log(data);
 };
