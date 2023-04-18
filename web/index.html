@@ -28,27 +28,30 @@
   </head>
   <body>
     <!-- Main content -->
-    <h1 class="title" style="text-align: center;font-size: 18px;">Server Stats</h1>
+    <h1 class="title" id="public-ip"></h1>
+    <script>
+      document.getElementById("public-ip").textContent = "IP ➔ "+window.location.hostname+":1234";
+    </script>
     <div class="container">
       <div class="row">
         <div class="card">
           <h2>Total Conns</h2>
-          <p id="numTotalConn"></p>
+          <p id="numTotalConn">-</p>
         </div>
 
         <div class="card">
           <h2>CPS</h2>
-          <p id="numConnPerSec"></p>
+          <p id="numConnPerSec">-</p>
         </div>
 
         <div class="card">
           <h2>Active Conns</h2>
-          <p id="numActiveConn"></p>
+          <p id="numActiveConn">-</p>
         </div>
 
         <div class="card">
           <h2>IPs Per Sec</h2>
-          <p id="numIpPerSec"></p>
+          <p id="numIpPerSec">-</p>
         </div>
       </div>
 
