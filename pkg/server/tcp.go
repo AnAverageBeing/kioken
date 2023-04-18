@@ -3,20 +3,19 @@ package server
 import (
 	"net"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
 type TCPServer struct {
-	numConnPerSec int32
-	localCPS      int32
-	numActiveConn int32
-	numTotalConn  int32
-	ipPerSec      int32
-	ips           map[string]bool
-	mutex         sync.Mutex
-	listener      net.Listener
-	stopChan      chan struct{}
+	numConnPerSec     int32 // number of connection made to server in last second
+	numConnCurrentSec int32 //its the number of connection made from last numCOnnPerSec reset
+	numActiveConn     int32 // number of active client connected to server
+	numTotalConn      int32 // total conn ever made to server
+	ipPerSec          int32 // number of unique ip that connected to server in last sec
+	ips               map[string]bool
+	mutex             sync.Mutex
+	listener          net.Listener
+	stopChan          chan struct{}
 }
 
 func NewServer(addr string) (*TCPServer, error) {
@@ -54,19 +53,19 @@ func (s *TCPServer) Stop() error {
 }
 
 func (s *TCPServer) GetNumConnPerSec() int {
-	return int(atomic.LoadInt32(&s.numConnPerSec))
+	return int(s.numConnPerSec)
 }
 
 func (s *TCPServer) GetNumActiveConn() int {
-	return int(atomic.LoadInt32(&s.numActiveConn))
+	return int(s.numActiveConn)
 }
 
 func (s *TCPServer) GetNumTotalConn() int {
-	return int(atomic.LoadInt32(&s.numTotalConn))
+	return int(s.numTotalConn)
 }
 
 func (s *TCPServer) GetIpPerSec() int {
-	return int(atomic.LoadInt32(&s.ipPerSec))
+	return int(s.ipPerSec)
 }
 
 func (s *TCPServer) acceptConn() {
@@ -80,14 +79,14 @@ func (s *TCPServer) acceptConn() {
 				continue
 			}
 
-			atomic.AddInt32(&s.numTotalConn, 1)
-			atomic.AddInt32(&s.numActiveConn, 1)
-			atomic.AddInt32(&s.localCPS, 1)
+			s.numTotalConn++
+			s.numActiveConn++
+			s.numConnCurrentSec++
 
 			go func() {
 				s.handleConn(conn)
 				if s.GetNumActiveConn() > 0 {
-					atomic.AddInt32(&s.numActiveConn, -1)
+					s.numActiveConn--
 				}
 			}()
 		}
@@ -98,13 +97,15 @@ func (s *TCPServer) handleConn(conn net.Conn) {
 	buf := make([]byte, 1024)
 	defer conn.Close()
 
+	s.updateIps(conn)
+
 	for {
+		conn.SetReadDeadline(<-time.After(time.Second))
 		if _, err := conn.Read(buf); err != nil {
 			break
 		}
 	}
 
-	s.updateIps(conn)
 }
 
 func (s *TCPServer) updateIps(conn net.Conn) {
@@ -122,16 +123,18 @@ func (s *TCPServer) updateStats() {
 			s.mutex.Lock()
 			s.ipPerSec = int32(len(s.ips))
 			s.ips = make(map[string]bool)
-			s.numConnPerSec = 0
 			s.mutex.Unlock()
+
+			s.numConnPerSec = 0
 			return
 		case <-ticker.C:
 			s.mutex.Lock()
 			s.ipPerSec = int32(len(s.ips))
 			s.ips = make(map[string]bool)
-			atomic.SwapInt32(&s.numConnPerSec, s.localCPS)
-			atomic.StoreInt32(&s.localCPS, 0)
 			s.mutex.Unlock()
+
+			s.numConnPerSec = s.numConnCurrentSec
+			s.numConnCurrentSec = 0
 		}
 	}
 }
