@@ -9,7 +9,7 @@ if [ ! -d "$OUTPUT_DIR" ]; then
 fi
 
 # Build kioken binary
-go build -o "$OUTPUT_DIR/kioken" ./cmd/kioken
+go build -ldflags="-s -w" -tags netgo -ldflags="-extldflags=-static" -o "$OUTPUT_DIR/kioken" ./cmd/kioken
 
 # Print success message
 echo "Build successful! Binary can be found in $OUTPUT_DIR/kioken"
