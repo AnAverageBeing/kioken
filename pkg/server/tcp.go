@@ -4,8 +4,6 @@ import (
 	"net"
 	"sync"
 	"time"
-
-	"github.com/panjf2000/ants/v2"
 )
 
 type TCPServer struct {
@@ -18,16 +16,10 @@ type TCPServer struct {
 
 	listener net.Listener
 	stopChan chan struct{}
-	pool     ants.Pool
 }
 
-func NewServer(addr string, numWorkers int) (*TCPServer, error) {
+func NewServer(addr string) (*TCPServer, error) {
 	listener, err := net.Listen("tcp", addr)
-	if err != nil {
-		return nil, err
-	}
-
-	pool, err := ants.NewPool(numWorkers, ants.WithNonblocking(true), ants.WithPreAlloc(true))
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +28,6 @@ func NewServer(addr string, numWorkers int) (*TCPServer, error) {
 		listener: listener,
 		stopChan: make(chan struct{}),
 		ips:      make(map[string]bool),
-		pool:     *pool,
 	}, nil
 }
 
@@ -92,7 +83,7 @@ func (s *TCPServer) acceptConn() {
 			s.numActiveConn++
 			s.numConnCurrentSec++
 
-			s.pool.Submit(func() { s.handleConn(conn) })
+			go s.handleConn(conn)
 		}
 	}
 }
@@ -100,6 +91,9 @@ func (s *TCPServer) acceptConn() {
 func (s *TCPServer) handleConn(conn net.Conn) {
 	buf := make([]byte, 1024)
 	defer conn.Close()
+	defer func() {
+		s.numActiveConn--
+	}()
 
 	s.updateIps(conn)
 
@@ -110,7 +104,6 @@ func (s *TCPServer) handleConn(conn net.Conn) {
 		}
 	}
 
-	s.numActiveConn--
 }
 
 func (s *TCPServer) updateIps(conn net.Conn) {
