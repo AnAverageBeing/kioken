@@ -13,6 +13,7 @@ type TCPServer struct {
 	numTotalConn      int32 // total conn ever made to server
 	ipPerSec          int32 // number of unique ip that connected to server in last sec
 	ips               map[string]bool
+	mutex             sync.Mutex
 
 	listener net.Listener
 	stopChan chan struct{}
@@ -107,7 +108,9 @@ func (s *TCPServer) handleConn(conn net.Conn) {
 }
 
 func (s *TCPServer) updateIps(conn net.Conn) {
+	s.mutex.Lock()
 	s.ips[conn.RemoteAddr().(*net.TCPAddr).IP.String()] = true
+	s.mutex.Unlock()
 }
 
 func (s *TCPServer) updateStats() {
@@ -116,13 +119,19 @@ func (s *TCPServer) updateStats() {
 	for {
 		select {
 		case <-s.stopChan:
+
+			s.mutex.Lock()
 			s.ipPerSec = int32(len(s.ips))
 			s.ips = make(map[string]bool)
+			s.mutex.Unlock()
+
 			s.numConnPerSec = 0
 			return
 		case <-ticker.C:
+			s.mutex.Lock()
 			s.ipPerSec = int32(len(s.ips))
 			s.ips = make(map[string]bool)
+			s.mutex.Unlock()
 			s.numConnPerSec = s.numConnCurrentSec
 			s.numConnCurrentSec = 0
 		}
