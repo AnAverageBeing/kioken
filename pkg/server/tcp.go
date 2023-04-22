@@ -92,9 +92,6 @@ func (s *TCPServer) acceptConn() {
 func (s *TCPServer) handleConn(conn net.Conn) {
 	buf := make([]byte, 1024)
 	defer conn.Close()
-	defer func() {
-		s.numActiveConn--
-	}()
 
 	s.updateIps(conn)
 
@@ -105,6 +102,7 @@ func (s *TCPServer) handleConn(conn net.Conn) {
 		}
 	}
 
+	s.numActiveConn--
 }
 
 func (s *TCPServer) updateIps(conn net.Conn) {
