@@ -13,9 +13,10 @@ type TCPServer struct {
 	numTotalConn      int32 // total conn ever made to server
 	ipPerSec          int32 // number of unique ip that connected to server in last sec
 	ips               map[string]bool
-	mutex             sync.Mutex
-	listener          net.Listener
-	stopChan          chan struct{}
+
+	mutex    sync.Mutex
+	listener net.Listener
+	stopChan chan struct{}
 }
 
 func NewServer(addr string) (*TCPServer, error) {
@@ -79,16 +80,13 @@ func (s *TCPServer) acceptConn() {
 				continue
 			}
 
+			s.mutex.Lock()
 			s.numTotalConn++
 			s.numActiveConn++
 			s.numConnCurrentSec++
+			s.mutex.Unlock()
 
-			go func() {
-				s.handleConn(conn)
-				if s.GetNumActiveConn() > 0 {
-					s.numActiveConn--
-				}
-			}()
+			go s.handleConn(conn)
 		}
 	}
 }
@@ -106,6 +104,9 @@ func (s *TCPServer) handleConn(conn net.Conn) {
 		}
 	}
 
+	s.mutex.Lock()
+	s.numActiveConn--
+	s.mutex.Unlock()
 }
 
 func (s *TCPServer) updateIps(conn net.Conn) {
@@ -123,18 +124,16 @@ func (s *TCPServer) updateStats() {
 			s.mutex.Lock()
 			s.ipPerSec = int32(len(s.ips))
 			s.ips = make(map[string]bool)
-			s.mutex.Unlock()
-
 			s.numConnPerSec = 0
+			s.mutex.Unlock()
 			return
 		case <-ticker.C:
 			s.mutex.Lock()
 			s.ipPerSec = int32(len(s.ips))
 			s.ips = make(map[string]bool)
-			s.mutex.Unlock()
-
 			s.numConnPerSec = s.numConnCurrentSec
 			s.numConnCurrentSec = 0
+			s.mutex.Unlock()
 		}
 	}
 }
