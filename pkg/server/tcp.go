@@ -4,6 +4,8 @@ import (
 	"net"
 	"sync"
 	"time"
+
+	"github.com/panjf2000/ants/v2"
 )
 
 type TCPServer struct {
@@ -14,13 +16,18 @@ type TCPServer struct {
 	ipPerSec          int32 // number of unique ip that connected to server in last sec
 	ips               map[string]bool
 
-	mutex    sync.Mutex
 	listener net.Listener
 	stopChan chan struct{}
+	pool     ants.Pool
 }
 
-func NewServer(addr string) (*TCPServer, error) {
+func NewServer(addr string, numWorkers int) (*TCPServer, error) {
 	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		return nil, err
+	}
+
+	pool, err := ants.NewPool(numWorkers, ants.WithNonblocking(true), ants.WithPreAlloc(true))
 	if err != nil {
 		return nil, err
 	}
@@ -29,6 +36,7 @@ func NewServer(addr string) (*TCPServer, error) {
 		listener: listener,
 		stopChan: make(chan struct{}),
 		ips:      make(map[string]bool),
+		pool:     *pool,
 	}, nil
 }
 
@@ -80,13 +88,11 @@ func (s *TCPServer) acceptConn() {
 				continue
 			}
 
-			s.mutex.Lock()
 			s.numTotalConn++
 			s.numActiveConn++
 			s.numConnCurrentSec++
-			s.mutex.Unlock()
 
-			go s.handleConn(conn)
+			s.pool.Submit(func() { s.handleConn(conn) })
 		}
 	}
 }
@@ -98,21 +104,17 @@ func (s *TCPServer) handleConn(conn net.Conn) {
 	s.updateIps(conn)
 
 	for {
-		conn.SetReadDeadline(<-time.After(time.Second))
+		conn.SetReadDeadline(<-time.After(7 * time.Second))
 		if _, err := conn.Read(buf); err != nil {
 			break
 		}
 	}
 
-	s.mutex.Lock()
 	s.numActiveConn--
-	s.mutex.Unlock()
 }
 
 func (s *TCPServer) updateIps(conn net.Conn) {
-	s.mutex.Lock()
 	s.ips[conn.RemoteAddr().(*net.TCPAddr).IP.String()] = true
-	s.mutex.Unlock()
 }
 
 func (s *TCPServer) updateStats() {
@@ -121,19 +123,15 @@ func (s *TCPServer) updateStats() {
 	for {
 		select {
 		case <-s.stopChan:
-			s.mutex.Lock()
 			s.ipPerSec = int32(len(s.ips))
 			s.ips = make(map[string]bool)
 			s.numConnPerSec = 0
-			s.mutex.Unlock()
 			return
 		case <-ticker.C:
-			s.mutex.Lock()
 			s.ipPerSec = int32(len(s.ips))
 			s.ips = make(map[string]bool)
 			s.numConnPerSec = s.numConnCurrentSec
 			s.numConnCurrentSec = 0
-			s.mutex.Unlock()
 		}
 	}
 }
