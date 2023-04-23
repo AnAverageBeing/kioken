@@ -57,7 +57,7 @@ func (s *Server) startListener() {
 		case <-s.quitChan:
 			return
 		default:
-			s.pool.SubmitTask(func() { s.handleConnection(conn) })
+			s.pool.SubmitTask(func() { s.handleConnection(conn) }, 5*time.Second)
 		}
 
 	}
@@ -66,6 +66,7 @@ func (s *Server) startListener() {
 func (s *Server) Stop() {
 	close(s.quitChan)
 	s.listener.Close()
+	s.pool.Shutdown()
 }
 
 func (s *Server) handleConnection(conn net.Conn) {
