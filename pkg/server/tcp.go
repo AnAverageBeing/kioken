@@ -17,6 +17,9 @@ type Server struct {
 	ConnPerSec   uint64 // number of client connected in last 1 sec (updated at end of each sec)
 	localCPS     uint64 // number of client connected in last 1 sec (updated every sec)
 	lastConnTime time.Time
+	totalInBytes uint64    // total inbound bytes received
+	lastCalcTime time.Time // last time inbound data rate was calculated
+	inDataRate   float64   // inbound data rate in MB/s
 }
 
 func (s *Server) GetNumConnCount() uint64 {
@@ -31,6 +34,10 @@ func (s *Server) GetNumConnRate() uint64 {
 	return atomic.LoadUint64(&s.ConnPerSec)
 }
 
+func (s *Server) GetInDataRate() float64 {
+	return s.inDataRate
+}
+
 func (s *Server) Start(numListeners int) {
 	var i int
 	for i = 0; i < numListeners; i++ {
@@ -38,6 +45,7 @@ func (s *Server) Start(numListeners int) {
 	}
 
 	go s.updateConnPerSec()
+	go s.updateInDataRate()
 }
 
 func (s *Server) startListener() {
@@ -80,15 +88,18 @@ func (s *Server) handleConnection(conn net.Conn) {
 	atomic.AddInt32(&s.activeConn, 1)
 
 	buf := make([]byte, 1024)
+	var totalBytesRead uint64
 	for {
 		err := conn.SetReadDeadline(time.Now().Add(3 * time.Second))
 		if err != nil {
 			return
 		}
-		_, err = conn.Read(buf)
+		n, err := conn.Read(buf)
 		if err != nil {
 			return
 		}
+		totalBytesRead += uint64(n)
+		atomic.AddUint64(&s.totalInBytes, uint64(n))
 	}
 }
 
@@ -100,6 +111,22 @@ func (s *Server) updateConnPerSec() {
 		case <-time.After(time.Second):
 			s.ConnPerSec = atomic.LoadUint64(&s.localCPS)
 			atomic.StoreUint64(&s.localCPS, 0)
+		}
+	}
+}
+
+func (s *Server) updateInDataRate() {
+	for {
+		select {
+		case <-s.quitChan:
+			return
+		case <-time.After(1 * time.Second):
+			totalInBytes := atomic.LoadUint64(&s.totalInBytes)
+			duration := time.Since(s.lastCalcTime).Seconds()
+			inDataRate := float64(totalInBytes) / (duration * 1024 * 1024)
+			s.inDataRate = inDataRate
+			atomic.StoreUint64(&s.totalInBytes, 0)
+			s.lastCalcTime = time.Now()
 		}
 	}
 }
