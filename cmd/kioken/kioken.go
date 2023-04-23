@@ -13,9 +13,9 @@ import (
 )
 
 type serverStats struct {
-	NumConnPerSec int `json:"numConnPerSec"` // number of connection made per sec
-	NumActiveConn int `json:"numActiveConn"` // number of active conn
-	NumTotalConn  int `json:"numTotalConn"`  // total conn ever made
+	NumConnPerSec uint64 `json:"numConnPerSec"` // number of connection made per sec
+	NumActiveConn int    `json:"numActiveConn"` // number of active conn
+	NumTotalConn  uint64 `json:"numTotalConn"`  // total conn ever made
 }
 
 var (

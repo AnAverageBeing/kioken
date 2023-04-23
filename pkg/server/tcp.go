@@ -3,29 +3,29 @@ package server
 import (
 	"fmt"
 	"net"
+	"sync/atomic"
 	"time"
 )
 
 type Server struct {
-	listener net.Listener
-	quitChan chan struct{}
-
-	activeConn   int
-	connCount    int
-	connRate     int
+	listener     net.Listener
+	quitChan     chan struct{}
+	activeConn   int32
+	connCount    uint64
+	connRate     uint64
 	lastConnTime time.Time
 }
 
-func (s *Server) GetNumConnCount() int {
-	return s.connCount
+func (s *Server) GetNumConnCount() uint64 {
+	return atomic.LoadUint64(&s.connCount)
 }
 
 func (s *Server) GetNumActiveConn() int {
-	return s.activeConn
+	return int(atomic.LoadInt32(&s.activeConn))
 }
 
-func (s *Server) GetNumConnRate() int {
-	return s.connRate
+func (s *Server) GetNumConnRate() uint64 {
+	return atomic.LoadUint64(&s.connRate)
 }
 
 func (s *Server) Start(numListeners int) {
@@ -64,22 +64,23 @@ func (s *Server) Stop() {
 }
 
 func (s *Server) handleConnection(conn net.Conn) {
-	defer conn.Close()
+	defer func() {
+		conn.Close()
+		atomic.AddInt32(&s.activeConn, -1)
+	}()
 
-	s.connCount++
-	s.updateConnectionRate()
-	s.activeConn++
+	atomic.AddUint64(&s.connCount, 1)
+	atomic.AddUint64(&s.connRate, 1)
+	atomic.AddInt32(&s.activeConn, 1)
 
 	var buf [1024]byte
 	for {
 		err := conn.SetReadDeadline(time.Now().Add(10 * time.Second))
 		if err != nil {
-			s.activeConn--
 			return
 		}
 		_, err = conn.Read(buf[:])
 		if err != nil {
-			s.activeConn--
 			return
 		}
 	}
@@ -87,9 +88,26 @@ func (s *Server) handleConnection(conn net.Conn) {
 
 func (s *Server) updateConnectionRate() {
 	now := time.Now()
-	if now.Sub(s.lastConnTime) >= time.Second {
-		s.connRate = s.connCount - 1
+	diff := now.Sub(s.lastConnTime)
+	if diff >= time.Second {
+		connCount := atomic.LoadUint64(&s.connCount)
+		prevCount := connCount - atomic.SwapUint64(&s.connRate, connCount)
+		fmt.Printf("Connections made in the last 1 second: %d\n", prevCount)
 		s.lastConnTime = now
+	}
+}
+
+func (s *Server) updateConnectionRateLoop() {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-s.quitChan:
+			return
+		case <-ticker.C:
+			s.updateConnectionRate()
+		}
 	}
 }
 
@@ -98,9 +116,11 @@ func NewServer(addr string) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Server{
+	s := &Server{
 		listener:     listener,
 		quitChan:     make(chan struct{}),
 		lastConnTime: time.Now(),
-	}, nil
+	}
+	go s.updateConnectionRateLoop()
+	return s, nil
 }
