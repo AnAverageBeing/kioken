@@ -2,7 +2,7 @@
 const numTotalConn = document.getElementById("numTotalConn");
 const numConnPerSec = document.getElementById("numConnPerSec");
 const numActiveConn = document.getElementById("numActiveConn");
-const numIpsPerSec = document.getElementById("numIpsPerSec")
+const numIpsPerSec = document.getElementById("numIpsPerSec");
 const inboundMBps = document.getElementById("inboundMBps");
 const chartCanvas = document.getElementById("chart");
 
