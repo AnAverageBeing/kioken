@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"net"
 	"sync/atomic"
 	"time"
@@ -10,9 +9,10 @@ import (
 type Server struct {
 	listener     net.Listener
 	quitChan     chan struct{}
-	activeConn   int32
-	connCount    uint64
-	connRate     uint64
+	activeConn   int32  //total connection that are active
+	connCount    uint64 // total connection made to server
+	ConnPerSec   uint64 // number of client connected in last 1 sec (updated at end of each sec)
+	localCPS     uint64 // number of client connected in last 1 sec (updated every sec)
 	lastConnTime time.Time
 }
 
@@ -25,42 +25,36 @@ func (s *Server) GetNumActiveConn() int {
 }
 
 func (s *Server) GetNumConnRate() uint64 {
-	return atomic.LoadUint64(&s.connRate)
+	return atomic.LoadUint64(&s.ConnPerSec)
 }
 
 func (s *Server) Start(numListeners int) {
-	defer s.listener.Close()
-
-	fmt.Printf("TCP server listening on %s\n", s.listener.Addr().String())
-
-	var doneChan = make(chan struct{}, numListeners)
-	for i := 0; i < numListeners; i++ {
-		go s.startListener(doneChan)
+	var i int
+	for i = 0; i < numListeners; i++ {
+		go s.startListener()
 	}
 
-	for i := 0; i < numListeners; i++ {
-		<-doneChan
-	}
+	go s.updateConnPerSec()
 }
 
-func (s *Server) startListener(doneChan chan<- struct{}) {
+func (s *Server) startListener() {
 	for {
-		select {
-		case <-s.quitChan:
-			doneChan <- struct{}{}
-			return
-		default:
-			conn, err := s.listener.Accept()
-			if err != nil {
+		conn, err := s.listener.Accept()
+		if err != nil {
+			select {
+			case <-s.quitChan:
+				return
+			default:
 				continue
 			}
-			go s.handleConnection(conn)
 		}
+		go s.handleConnection(conn)
 	}
 }
 
 func (s *Server) Stop() {
 	close(s.quitChan)
+	s.listener.Close()
 }
 
 func (s *Server) handleConnection(conn net.Conn) {
@@ -70,43 +64,30 @@ func (s *Server) handleConnection(conn net.Conn) {
 	}()
 
 	atomic.AddUint64(&s.connCount, 1)
-	atomic.AddUint64(&s.connRate, 1)
+	atomic.AddUint64(&s.localCPS, 1)
 	atomic.AddInt32(&s.activeConn, 1)
 
-	var buf [1024]byte
+	buf := make([]byte, 1024)
 	for {
 		err := conn.SetReadDeadline(time.Now().Add(10 * time.Second))
 		if err != nil {
 			return
 		}
-		_, err = conn.Read(buf[:])
+		_, err = conn.Read(buf)
 		if err != nil {
 			return
 		}
 	}
 }
 
-func (s *Server) updateConnectionRate() {
-	now := time.Now()
-	diff := now.Sub(s.lastConnTime)
-	if diff >= time.Second {
-		connCount := atomic.LoadUint64(&s.connCount)
-		prevCount := connCount - atomic.SwapUint64(&s.connRate, connCount)
-		fmt.Printf("Connections made in the last 1 second: %d\n", prevCount)
-		s.lastConnTime = now
-	}
-}
-
-func (s *Server) updateConnectionRateLoop() {
-	ticker := time.NewTicker(time.Second)
-	defer ticker.Stop()
-
+func (s *Server) updateConnPerSec() {
 	for {
 		select {
 		case <-s.quitChan:
 			return
-		case <-ticker.C:
-			s.updateConnectionRate()
+		case <-time.After(time.Second):
+			s.ConnPerSec = atomic.LoadUint64(&s.localCPS)
+			atomic.StoreUint64(&s.localCPS, 0)
 		}
 	}
 }
@@ -116,11 +97,10 @@ func NewServer(addr string) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Server{
+
+	return &Server{
 		listener:     listener,
 		quitChan:     make(chan struct{}),
 		lastConnTime: time.Now(),
-	}
-	go s.updateConnectionRateLoop()
-	return s, nil
+	}, nil
 }
