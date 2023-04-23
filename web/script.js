@@ -22,7 +22,7 @@ const chart = new Chart(chartCtx, {
         borderWidth: 4,
         fill: true,
         pointRadius: 0,
-        pointHoverRadius: 1,
+        pointHoverRadius: 3,
       },
       {
         label: "Active Connections",
@@ -32,7 +32,7 @@ const chart = new Chart(chartCtx, {
         borderWidth: 4,
         fill: true,
         pointRadius: 0,
-        pointHoverRadius: 1,
+        pointHoverRadius: 3,
       },
     ],
   },
