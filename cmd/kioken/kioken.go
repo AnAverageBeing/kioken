@@ -16,7 +16,7 @@ type serverStats struct {
 	NumConnPerSec uint64  `json:"numConnPerSec"` // number of connection made per sec
 	NumActiveConn int     `json:"numActiveConn"` // number of active conn
 	NumTotalConn  uint64  `json:"numTotalConn"`  // total conn ever made
-	InboundMBPS   float64 `json:"inboundMBps`    // inbound in MBps
+	InboundMBps   float64 `json:"inboundMBps`    // inbound in MBps
 }
 
 var (
@@ -64,7 +64,7 @@ func handleWebSocket(tcpServer *server.Server) http.HandlerFunc {
 					NumConnPerSec: tcpServer.GetNumConnRate(),
 					NumActiveConn: tcpServer.GetNumActiveConn(),
 					NumTotalConn:  tcpServer.GetNumConnCount(),
-					InboundMBPS:   tcpServer.GetInDataRate(),
+					InboundMBps:   tcpServer.GetInDataRate(),
 				}
 
 				statsJSON, err := json.Marshal(stats)
