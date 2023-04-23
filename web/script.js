@@ -40,7 +40,7 @@ const chart = new Chart(chartCtx, {
     responsive: true,
     scales: {
       xAxes: [{ display: false }],
-      yAxes: [{ display: true, ticks: { beginAtZero: false } }],
+      yAxes: [{ display: true, ticks: { beginAtZero: true } }],
     },
   },
 });
