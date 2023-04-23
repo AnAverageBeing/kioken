@@ -17,7 +17,7 @@ type serverStats struct {
 	NumConnPerSec string `json:"numConnPerSec"` // number of connection made per sec
 	NumActiveConn string `json:"numActiveConn"` // number of active conn
 	NumTotalConn  string `json:"numTotalConn"`  // total conn ever made
-	InboundMBps   string `json:"inboundMBps`    // inbound in MBps
+	InboundMBps   string `json:"inboundMBps"`   // inbound in MBps
 }
 
 var (
