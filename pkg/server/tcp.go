@@ -88,7 +88,6 @@ func (s *Server) handleConnection(conn net.Conn) {
 	atomic.AddInt32(&s.activeConn, 1)
 
 	buf := make([]byte, 1024)
-	var totalBytesRead uint64
 	for {
 		err := conn.SetReadDeadline(time.Now().Add(3 * time.Second))
 		if err != nil {
@@ -98,7 +97,6 @@ func (s *Server) handleConnection(conn net.Conn) {
 		if err != nil {
 			return
 		}
-		totalBytesRead += uint64(n)
 		atomic.AddUint64(&s.totalInBytes, uint64(n))
 	}
 }
