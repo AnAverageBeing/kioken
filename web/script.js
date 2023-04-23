@@ -5,7 +5,7 @@ const numActiveConn = document.getElementById("numActiveConn");
 const chartCanvas = document.getElementById("chart");
 
 // Initialize variables
-let limit = 120;
+const limit = 120;
 const chartCtx = chartCanvas.getContext("2d");
 
 // Create chart
@@ -46,16 +46,16 @@ const chart = new Chart(chartCtx, {
 });
 
 // Connect to WebSocket
-const ws = new WebSocket("ws://" + window.location.host + "/ws");
+const ws = new WebSocket(`ws://${window.location.host}/ws`);
 
 // Handle WebSocket messages
-ws.onmessage = function (event) {
+ws.addEventListener("message", (event) => {
   const data = JSON.parse(event.data);
   console.log(data);
   // Update text content of elements
-  numTotalConn.innerText = data.numTotalConn;
-  numConnPerSec.innerText = data.numConnPerSec;
-  numActiveConn.innerText = data.numActiveConn;
+  numTotalConn.textContent = data.numTotalConn;
+  numConnPerSec.textContent = data.numConnPerSec;
+  numActiveConn.textContent = data.numActiveConn;
 
   // Update chart data
   const timestamp = new Date().toLocaleTimeString();
@@ -65,11 +65,11 @@ ws.onmessage = function (event) {
 
   // Remove oldest data points if limit is reached
   if (chart.data.labels.length > limit) {
-    chart.data.labels.splice(0, 1);
-    chart.data.datasets[0].data.splice(0, 1);
-    chart.data.datasets[1].data.splice(0, 1);
+    chart.data.labels.shift();
+    chart.data.datasets[0].data.shift();
+    chart.data.datasets[1].data.shift();
   }
 
   // Update chart
   chart.update();
-};
+});
