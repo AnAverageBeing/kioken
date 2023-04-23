@@ -136,7 +136,7 @@ func (s *Server) updateStats() {
 			s.lastCalcTime = time.Now()
 
 			//Updating IPS
-			s.ConnPerSec = uint64(len(s.ipsMap))
+			s.ipsPerSec = uint64(len(s.ipsMap))
 
 			s.ipsMapMutex.Lock()
 			s.ipsMap = make(map[string]bool)
