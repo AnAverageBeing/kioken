@@ -15,7 +15,6 @@ import (
 type serverStats struct {
 	NumConnPerSec int `json:"numConnPerSec"` // number of connection made per sec
 	NumActiveConn int `json:"numActiveConn"` // number of active conn
-	NumIpPerSec   int `json:"numIpPerSec"`   // number of unique IP per sec
 	NumTotalConn  int `json:"numTotalConn"`  // total conn ever made
 }
 
@@ -46,7 +45,7 @@ func main() {
 	log.Fatal(http.ListenAndServe(":80", nil))
 }
 
-func handleWebSocket(tcpServer *server.TCPServer) http.HandlerFunc {
+func handleWebSocket(tcpServer *server.Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Upgrade the HTTP connection to WebSocket
 		conn, err := upgrader.Upgrade(w, r, nil)
@@ -60,10 +59,9 @@ func handleWebSocket(tcpServer *server.TCPServer) http.HandlerFunc {
 			ticker := time.NewTicker(time.Second)
 			for range ticker.C {
 				stats := serverStats{
-					NumConnPerSec: tcpServer.GetNumConnPerSec(),
+					NumConnPerSec: tcpServer.GetNumConnRate(),
 					NumActiveConn: tcpServer.GetNumActiveConn(),
-					NumTotalConn:  tcpServer.GetNumTotalConn(),
-					NumIpPerSec:   tcpServer.GetIpPerSec(),
+					NumTotalConn:  tcpServer.GetNumConnCount(),
 				}
 
 				statsJSON, err := json.Marshal(stats)
