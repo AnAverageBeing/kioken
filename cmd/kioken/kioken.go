@@ -65,7 +65,7 @@ func handleWebSocket(tcpServer *server.Server) http.HandlerFunc {
 					NumConnPerSec: fmt.Sprintf("%d", tcpServer.GetNumConnRate()),
 					NumActiveConn: fmt.Sprintf("%d", tcpServer.GetNumActiveConn()),
 					NumTotalConn:  fmt.Sprintf("%d", tcpServer.GetNumConnCount()),
-					InboundMBps:   fmt.Sprintf("%f", tcpServer.GetInDataRate()),
+					InboundMBps:   fmt.Sprintf("%0.2f", tcpServer.GetInDataRate()),
 				}
 
 				statsJSON, err := json.Marshal(stats)
