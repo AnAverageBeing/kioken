@@ -39,7 +39,7 @@ const chart = new Chart(chartCtx, {
       {
         label: "IPs Per Sec",
         data: [],
-        backgroundColor: "rgb(137, 235, 137, 0.2)",
+        backgroundColor: "rgba(137, 235, 137, 0.2)",
         borderColor: "rgba(137, 235, 137, 1)",
         borderWidth: 4,
         fill: true,
