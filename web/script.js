@@ -67,14 +67,14 @@ ws.addEventListener("message", (event) => {
   numTotalConn.textContent = data.numTotalConn;
   numConnPerSec.textContent = data.numConnPerSec;
   numActiveConn.textContent = data.numActiveConn;
-  inboundMBps.textContent = parseFloat(data.inboundMBps);
+  inboundMBps.textContent = data.inboundMBps;
 
   // Update chart data
   const timestamp = new Date().toLocaleTimeString();
   chart.data.labels.push(timestamp);
   chart.data.datasets[0].data.push(data.numConnPerSec);
   chart.data.datasets[1].data.push(data.numActiveConn);
-  chart.data.datasets[2].data.push(parseFloat(data.inboundMBps));
+  chart.data.datasets[2].data.push(data.inboundMBps);
 
   // Remove oldest data points if limit is reached
   if (chart.data.labels.length > limit) {

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -13,10 +14,10 @@ import (
 )
 
 type serverStats struct {
-	NumConnPerSec uint64  `json:"numConnPerSec"` // number of connection made per sec
-	NumActiveConn int     `json:"numActiveConn"` // number of active conn
-	NumTotalConn  uint64  `json:"numTotalConn"`  // total conn ever made
-	InboundMBps   float64 `json:"inboundMBps`    // inbound in MBps
+	NumConnPerSec string `json:"numConnPerSec"` // number of connection made per sec
+	NumActiveConn string `json:"numActiveConn"` // number of active conn
+	NumTotalConn  string `json:"numTotalConn"`  // total conn ever made
+	InboundMBps   string `json:"inboundMBps`    // inbound in MBps
 }
 
 var (
@@ -61,10 +62,10 @@ func handleWebSocket(tcpServer *server.Server) http.HandlerFunc {
 			ticker := time.NewTicker(time.Second)
 			for range ticker.C {
 				stats := serverStats{
-					NumConnPerSec: tcpServer.GetNumConnRate(),
-					NumActiveConn: tcpServer.GetNumActiveConn(),
-					NumTotalConn:  tcpServer.GetNumConnCount(),
-					InboundMBps:   tcpServer.GetInDataRate(),
+					NumConnPerSec: fmt.Sprintf("%d", tcpServer.GetNumConnRate()),
+					NumActiveConn: fmt.Sprintf("%d", tcpServer.GetNumActiveConn()),
+					NumTotalConn:  fmt.Sprintf("%d", tcpServer.GetNumConnCount()),
+					InboundMBps:   fmt.Sprintf("%f", tcpServer.GetInDataRate()),
 				}
 
 				statsJSON, err := json.Marshal(stats)
