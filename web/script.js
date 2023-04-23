@@ -78,7 +78,7 @@ ws.addEventListener("message", (event) => {
   numTotalConn.textContent = data.numTotalConn;
   numConnPerSec.textContent = data.numConnPerSec;
   numActiveConn.textContent = data.numActiveConn;
-  numIpsPerSec.textContent = data.numIpsPerSec
+  numIpsPerSec.textContent = data.numIpsPerSec;
   inboundMBps.textContent = data.inboundMBps;
 
   // Update chart data
@@ -86,7 +86,7 @@ ws.addEventListener("message", (event) => {
   chart.data.labels.push(timestamp);
   chart.data.datasets[0].data.push(data.numConnPerSec);
   chart.data.datasets[1].data.push(data.numActiveConn);
-  chart.data.datasets[2].data.push(data.numIpsPerSec)
+  chart.data.datasets[2].data.push(data.numIpsPerSec);
   chart.data.datasets[3].data.push(data.inboundMBps);
 
   // Remove oldest data points if limit is reached
