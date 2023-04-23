@@ -35,7 +35,7 @@ body {
 .card {
   flex: 1;
   margin: 10px;
-  padding: 17px;
+  padding: 15px;
   text-align: center;
   background-color: #282828;
   border-radius: 20px;
@@ -65,7 +65,7 @@ body {
 }
 
 .chart-container {
-  width: 75%;
+  width: 80%;
   height: auto;
   margin: 10px;
   padding: 20px;
