@@ -1,6 +1,6 @@
 # KioKen
 A tcp server with a dashboard.<br>
-Desined to test stresser tools.<br>
+Designed to test stresser tools.<br>
 
 ## How to use
 
