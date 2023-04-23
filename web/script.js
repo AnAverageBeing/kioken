@@ -50,8 +50,8 @@ const chart = new Chart(chartCtx, {
   options: {
     responsive: true,
     scales: {
-      xAxes: [{ display: false }],
-      yAxes: [{ display: true, ticks: { beginAtZero: true } }],
+      xAxes: [{ display: true }],
+      yAxes: [{ display: true, ticks: { beginAtZero: false } }],
     },
   },
 });
