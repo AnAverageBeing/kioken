@@ -19,7 +19,8 @@ type serverStats struct {
 }
 
 var (
-	numListener = flag.Int("listeners", 5, "Num of connection acceptor loops")
+	numListener = flag.Int("ln", 5, "Num of connection acceptor loops")
+	poolSize    = flag.Int("ps", 50000, "Num of workers in pool")
 )
 
 var upgrader = websocket.Upgrader{
@@ -31,7 +32,7 @@ var upgrader = websocket.Upgrader{
 func main() {
 	flag.Parse()
 	// Create a new TCP server and start it
-	tcpServer, err := server.NewServer(":1234")
+	tcpServer, err := server.NewServer(":1234", *poolSize)
 	if err != nil {
 		log.Fatalln(err)
 	}

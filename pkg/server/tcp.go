@@ -1,14 +1,17 @@
 package server
 
 import (
+	"kioken/pkg/pool"
 	"net"
 	"sync/atomic"
 	"time"
 )
 
 type Server struct {
-	listener     net.Listener
-	quitChan     chan struct{}
+	listener net.Listener
+	quitChan chan struct{}
+	pool     pool.Pool
+
 	activeConn   int32  //total connection that are active
 	connCount    uint64 // total connection made to server
 	ConnPerSec   uint64 // number of client connected in last 1 sec (updated at end of each sec)
@@ -40,6 +43,7 @@ func (s *Server) Start(numListeners int) {
 func (s *Server) startListener() {
 	for {
 		conn, err := s.listener.Accept()
+
 		if err != nil {
 			select {
 			case <-s.quitChan:
@@ -48,7 +52,14 @@ func (s *Server) startListener() {
 				continue
 			}
 		}
-		go s.handleConnection(conn)
+
+		select {
+		case <-s.quitChan:
+			return
+		default:
+			s.pool.SubmitTask(func() { s.handleConnection(conn) })
+		}
+
 	}
 }
 
@@ -69,7 +80,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 
 	buf := make([]byte, 1024)
 	for {
-		err := conn.SetReadDeadline(time.Now().Add(10 * time.Second))
+		err := conn.SetReadDeadline(time.Now().Add(3 * time.Second))
 		if err != nil {
 			return
 		}
@@ -92,7 +103,7 @@ func (s *Server) updateConnPerSec() {
 	}
 }
 
-func NewServer(addr string) (*Server, error) {
+func NewServer(addr string, poolSize int) (*Server, error) {
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return nil, err
@@ -102,5 +113,6 @@ func NewServer(addr string) (*Server, error) {
 		listener:     listener,
 		quitChan:     make(chan struct{}),
 		lastConnTime: time.Now(),
+		pool:         *pool.New(poolSize),
 	}, nil
 }
