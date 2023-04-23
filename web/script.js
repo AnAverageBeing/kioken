@@ -78,7 +78,7 @@ ws.addEventListener("message", (event) => {
   numTotalConn.textContent = data.numTotalConn;
   numConnPerSec.textContent = data.numConnPerSec;
   numActiveConn.textContent = data.numActiveConn;
-  numIpsPerSec.textContent = data.numIpsPerSec;
+  numIpsPerSec.textContent = "IT SHOULD WORK";
   inboundMBps.textContent = data.inboundMBps;
 
   // Update chart data
