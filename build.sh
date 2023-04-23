@@ -1,7 +1,24 @@
 #!/bin/bash
 
-# Define output directory
+# Default output directory
 OUTPUT_DIR="."
+
+# Parse command-line arguments
+while getopts ":o:" opt; do
+  case $opt in
+    o)
+      OUTPUT_DIR=$OPTARG
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+      exit 1
+      ;;
+    :)
+      echo "Option -$OPTARG requires an argument." >&2
+      exit 1
+      ;;
+  esac
+done
 
 # Create output directory if it doesn't exist
 if [ ! -d "$OUTPUT_DIR" ]; then
