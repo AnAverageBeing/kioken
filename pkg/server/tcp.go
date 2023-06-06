@@ -10,17 +10,15 @@ import (
 )
 
 type Server struct {
-	listener net.Listener
-	quitChan chan struct{}
-	pool     pool.Pool
-
-	activeConn   int32  //total connection that are active
-	connCount    uint64 // total connection made to server
-	ConnPerSec   uint64 // number of client connected in last 1 sec (updated at end of each sec)
-	localCPS     uint64 // number of client connected in last 1 sec (updated realtime)
-	ipsMap       map[string]bool
-	ipsMapMutex  sync.Mutex
-	ipsPerSec    uint64    //number of unique ips that connected to server in last 1 sec
+	listener     net.Listener
+	quitChan     chan struct{}
+	pool         pool.Pool
+	activeConn   int32     // total connections that are active
+	connCount    uint64    // total connections made to the server
+	ConnPerSec   uint64    // number of clients connected in the last 1 second (updated at the end of each second)
+	localCPS     uint64    // number of clients connected in the last 1 second (updated in real-time)
+	ipsMap       sync.Map  // map for storing unique IP addresses
+	ipsPerSec    uint64    // number of unique IPs that connected to the server in the last 1 second
 	totalInBytes uint64    // total inbound bytes received
 	lastCalcTime time.Time // last time inbound data rate was calculated
 	inDataRate   float64   // inbound data rate in MB/s
@@ -98,9 +96,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 	addr := conn.RemoteAddr().String()
 	ip := strings.Split(addr, ":")[0]
 
-	s.ipsMapMutex.Lock()
-	s.ipsMap[ip] = true
-	s.ipsMapMutex.Unlock()
+	s.ipsMap.Store(ip, true)
 
 	buf := make([]byte, 1024)
 	for {
@@ -123,11 +119,11 @@ func (s *Server) updateStats() {
 		case <-s.quitChan:
 			return
 		case <-ticker.C:
-			//updating CPS
+			// Updating CPS
 			s.ConnPerSec = atomic.LoadUint64(&s.localCPS)
 			atomic.StoreUint64(&s.localCPS, 0)
 
-			//Updating inbound
+			// Updating inbound
 			totalInBytes := atomic.LoadUint64(&s.totalInBytes)
 			duration := time.Since(s.lastCalcTime).Seconds()
 			inDataRate := float64(totalInBytes) / (duration * 1024 * 1024)
@@ -135,12 +131,13 @@ func (s *Server) updateStats() {
 			atomic.StoreUint64(&s.totalInBytes, 0)
 			s.lastCalcTime = time.Now()
 
-			//Updating IPS
-			s.ipsPerSec = uint64(len(s.ipsMap))
-
-			s.ipsMapMutex.Lock()
-			s.ipsMap = make(map[string]bool)
-			s.ipsMapMutex.Unlock()
+			// Updating IPS
+			count := uint64(0)
+			s.ipsMap.Range(func(key, value interface{}) bool {
+				count++
+				return true
+			})
+			s.ipsPerSec = count
 		}
 	}
 }
@@ -152,10 +149,8 @@ func NewServer(addr string, poolSize int) (*Server, error) {
 	}
 
 	return &Server{
-		listener:    listener,
-		quitChan:    make(chan struct{}),
-		pool:        *pool.New(poolSize),
-		ipsMap:      make(map[string]bool),
-		ipsMapMutex: sync.Mutex{},
+		listener: listener,
+		quitChan: make(chan struct{}),
+		pool:     *pool.New(poolSize),
 	}, nil
 }
